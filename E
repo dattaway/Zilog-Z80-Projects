@@ -1,0 +1,8 @@
+  Tasm Version 2.8.8, May, 1991. -rev:4/4/92
+tasm: pass 1 complete.
+tasm: Label not found: (cursory) Line 1246
+tasm: Label not found: (cursorblk) Line 1267
+tasm: Label not found: (addrgr) Line 1311
+tasm: pass 2 complete.
+tasm: Number of errors = 3
+Elapsed time = 40 secs  lines = 3004   lines/sec = 75

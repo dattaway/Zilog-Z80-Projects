@@ -1,0 +1,1094 @@
+0001   0000             
+0002   0000             ;**************************************************************************
+0003   0000             ;system information
+0004   0000             ;**************************************************************************
+0005   0000             
+0006   0000             scale       .equ        $8          ;port:      pulse port
+0007   0000             digitalker  .equ        $18         ;port:      digitalker
+0008   0000             lcd         .equ        $00         ;port:      lcd
+0009   0000             waitime     .equ        $29         ;variable:  time delay
+0010   0000             space       .equ        $20         ;variable:  ascii space
+0011   0000             nul         .equ        0           ;variable:  zero
+0012   0000             chk_wrt     .equ        $00
+0013   0000             wrt_dat     .equ        $01
+0014   0000             lcd_str     .equ        $01
+0015   0000             chk_rd      .equ        $02
+0016   0000             set_ent     .equ        $06
+0017   0000             dat_len     .equ        $0f
+0018   0000             get_wrd     .equ        $0f
+0019   0000             lcd_set     .equ        $38
+0020   0000             dis_2       .equ        $c0
+0021   0000             holdtime    .equ	12
+0022   0000             holdweight  .equ	5
+0023   0000             clrscrctrl  .equ        $01
+0024   0000             rightctrl   .equ        $06
+0025   0000             leftctrl    .equ        $07
+0026   0000             delctrl     .equ        $08
+0027   0000             
+0028   0000             
+0029   0000             romstart    .equ	$0
+0030   0000             romtop	    .equ	$1000
+0031   0000             ramstart    .equ	$8000
+0032   0000             ramtop	    .equ	$8800	    ;top of ram, used
+0033   0000             				    ;for the stack.
+0034   0000             
+0035   0000             ;**************************************************************************
+0036   0000             ;rom area
+0037   0000             ;**************************************************************************
+0038   0000             
+0039   0000             	    ;start of rom data area --after code
+0040   0000             	    .org	romstart
+0041   0000 F3          rom	    di
+0042   0001 31 00 88    	    ld		sp,ramtop
+0043   0004 C3 7B 00    	    jp		romcheck
+0044   0008             	    .org	$08
+0045   0008 C3 69 00    rst08loc    jp		rst08prg
+0046   0010             	    .org	$10
+0047   0010 C3 6A 00    rst10loc    jp		rst10prg
+0048   0018             	    .org	$18
+0049   0018 C3 6B 00    rst18loc    jp		rst18prg
+0050   0020             	    .org	$20
+0051   0020 C3 6C 00    rst20loc    jp		rst20prg
+0052   0028             	    .org	$28
+0053   0028 C3 6D 00    rst28loc    jp		rst28prg
+0054   0030             	    .org	$30
+0055   0030 C3 6E 00    rst30loc    jp		rst30prg
+0056   0038             	    .org	$38
+0057   0038 C3 6F 00    rst38loc    jp		rst38prg
+0058   0066             	    .org	$66
+0059   0066 C3 70 00    nmiloc	    jp		rstnmiprg
+0060   0069 C9          rst08prg    ret
+0061   006A C9          rst10prg    ret
+0062   006B C9          rst18prg    ret
+0063   006C C9          rst20prg    ret
+0064   006D C9          rst28prg    ret
+0065   006E C9          rst30prg    ret
+0066   006F C9          rst38prg    ret
+0067   0070 C9          rstnmiprg   ret
+0068   0071             
+0069   0071             
+0070   0071             ;*************************************************************************
+0071   0071             ;romerr
+0072   0071             ;this subroutine prints out to the lcd that there has
+0073   0071             ;been a bug in the rom.  the system then halts
+0074   0071             ;
+0075   0071             ;*************************************************************************
+0076   0071             ;
+0077   0071 CD 6F 01    romerr	    call	init_lcd
+0078   0074 21 A2 04    	    ld		hl,rombadmsg
+0079   0077 CD AA 01    	    call	prtstg	    ;if the stack is bad
+0080   007A             				    ;in the ram, who cares
+0081   007A             				    ;because all we need
+0082   007A             				    ;is to get the distress message out
+0083   007A             				    ;there.
+0084   007A 76          	    halt
+0085   007B             
+0086   007B             
+0087   007B             ;*************************************************************************
+0088   007B             ;romcheck
+0089   007B             ;this subroutine checks the rom checksum with the
+0090   007B             ;last two bytes of the rom, which should store the
+0091   007B             ;16 bit sum of each successive byte in the rom.
+0092   007B             ;
+0093   007B             ;*************************************************************************
+0094   007B             ;
+0095   007B 21 00 00    romcheck    ld		hl,0	    ;pointer to memory
+0096   007E 01 FE 0F    	    ld		bc,romtop-romstart-2
+0097   0081 11 00 00    	    ld		de,0
+0098   0084 7E          nextrom     ld		a,(hl)
+0099   0085 83          	    add 	a,e
+0100   0086 5F          	    ld		e,a
+0101   0087 3E 00       	    ld		a,0
+0102   0089 8A          	    adc 	a,d
+0103   008A 57          	    ld		d,a
+0104   008B 23          	    inc 	hl
+0105   008C 0B          	    dec 	bc
+0106   008D 78          	    ld		a,b
+0107   008E B1          	    or		c
+0108   008F 20 F3       	    jr		nz,nextrom
+0109   0091             
+0110   0091             	    ;rom checksum is now calculated
+0111   0091             
+0112   0091 2A FE 0F    	    ld		hl,(romtop-2)
+0113   0094 AF          	    xor 	a	    ;clear carry
+0114   0095 ED 52       	    sbc 	hl,de	    ;compare
+0115   0097 AF          	    xor 	a
+0116   0098 20 D7       	    jr		nz,romerr
+0117   009A             
+0118   009A             	    ;rom is ok!!!
+0119   009A             
+0120   009A             ;*************************************************************************
+0121   009A             ;ramcheck
+0122   009A             ;this subroutine checks out the data bits in the ram
+0123   009A             ;to ensure thier integrety.  the ram contents are not
+0124   009A             ;destroyed.
+0125   009A             ;
+0126   009A             ;*************************************************************************
+0127   009A             ;
+0128   009A 21 00 80    ramcheck    ld		hl,ramstart
+0129   009D 01 00 08    	    ld		bc,ramtop-ramstart
+0130   00A0 7E          nextram     ld		a,(hl)
+0131   00A1 2F          	    cpl
+0132   00A2 47          	    ld		b,a
+0133   00A3 77          	    ld		(hl),a
+0134   00A4 7E          	    ld		a,(hl)
+0135   00A5 B8          	    cp		b
+0136   00A6 20 15       	    jr		nz,ramerror
+0137   00A8 2F          	    cpl
+0138   00A9 77          	    ld		(hl),a
+0139   00AA 7E          	    ld		a,(hl)
+0140   00AB B8          	    cp		b
+0141   00AC 20 0F       	    jr		nz,ramerror
+0142   00AE 23          	    inc 	hl
+0143   00AF 0B          	    dec 	bc
+0144   00B0 78          	    ld		a,b
+0145   00B1 B1          	    or		c
+0146   00B2 20 EC       	    jr		nz,nextram
+0147   00B4 21 92 04    	    ld		hl,ramokmsg
+0148   00B7 CD AA 01    	    call	prtstg
+0149   00BA C3 09 01    	    jp		main	    ;goto the main program
+0150   00BD             				    ;all error checking is
+0151   00BD             				    ;done.
+0152   00BD             
+0153   00BD             
+0154   00BD             	    ;ram is ok!!!
+0155   00BD             
+0156   00BD 3E 38       ramerror    ld	    a,38h	;initialize the lcd
+0157   00BF D3 00       	    out     (chk_wrt),a
+0158   00C1 CD 8E 01    	    call    bus_sig
+0159   00C4 3E 0F       	    ld	    a,0fh
+0160   00C6 D3 00       	    out     (chk_wrt),a
+0161   00C8 CD 8E 01    	    call    bus_sig
+0162   00CB 3E 01       	    ld	    a,01h
+0163   00CD D3 00       	    out     (chk_wrt),a
+0164   00CF CD 8E 01    	    call    bus_sig
+0165   00D2 3E 06       	    ld	    a,06h
+0166   00D4 D3 00       	    out     (chk_wrt),a
+0167   00D6 21 82 04    	    ld	    hl,ramerrmsg
+0168   00D9 CD AA 01    	    call    prtstg	    ;don't care about returning
+0169   00DC 76          	    halt
+0170   00DD             
+0171   00DD             
+0172   00DD             ;*******************************************************************************
+0173   00DD             ;lcd test
+0174   00DD             ;this sophisticated test uses the principle, if the
+0175   00DD             ;message is displayed, it works!!!
+0176   00DD             ;
+0177   00DD             ;*******************************************************************************
+0178   00DD             ;
+0179   00DD CD 00 00    lcdtest     call	lcd	    ;initialize the lcd
+0180   00E0 21 77 04    	    ld		hl,lcdmsg
+0181   00E3 CD AA 01    	    call	prtstg
+0182   00E6 CD ED 00    	    call	lcdstay
+0183   00E9 CD 97 01    	    call	cls
+0184   00EC C9          	    ret
+0185   00ED             
+0186   00ED             
+0187   00ED             
+0188   00ED             ;******************************************************************************
+0189   00ED             ;lcdstay Subroutine
+0190   00ED             ;this subroutine is a delay for the message on the lcd
+0191   00ED             ;
+0192   00ED             ;*******************************************************************************
+0193   00ED             ;
+0194   00ED F5          lcdstay     push	af
+0195   00EE E5          	    push	hl
+0196   00EF 11 84 03    	    ld		de,900D
+0197   00F2 3E FF       loop2	    ld		a,$ff
+0198   00F4 3D          loop1	    dec 	a
+0199   00F5 20 FD       	    jr		nz,loop1
+0200   00F7 1B          	    dec 	de
+0201   00F8 7B          	    ld		a,e
+0202   00F9 B2          	    or		d
+0203   00FA 20 F6       	    jr		nz,loop2
+0204   00FC E1          	    pop 	hl
+0205   00FD F1          	    pop 	af
+0206   00FE C9          	    ret
+0207   00FF             
+0208   00FF             
+0209   00FF             ;*******************************************************************************
+0210   00FF             ;homer
+0211   00FF             ;this subroutine places the cursor back in the home
+0212   00FF             ;position on the lcd
+0213   00FF             ;
+0214   00FF             ;*******************************************************************************
+0215   00FF             ;
+0216   00FF F5          homer	    push	af
+0217   0100 CD 8E 01    	    call	bus_sig
+0218   0103 3E 02       	    ld		a,00000010b
+0219   0105 D3 00       	    out 	(chk_wrt),a
+0220   0107 F1          	    pop 	af
+0221   0108 C9          	    ret
+0222   0109             
+0223   0109             ;*******************************************************************************
+0224   0109             ;main system software
+0225   0109             ;*******************************************************************************
+0226   0109             ;*******************************************************************************
+0227   0109             
+0228   0109 CD 6F 01    main	    call	init_lcd
+0229   010C CD 68 01    	    call	namedisp    ;initially displays my name on the lcd
+0230   010F             
+0231   010F                                                 ;test talking scale
+0232   010F CD 23 02    main1       call        clearscale  ;scale is reset at start of this only.
+0233   0112             
+0234   0112 CD 72 02    main2       call        read
+0235   0115 CD 20 01    	    call	waitnext    ;wait for weight to change
+0236   0118             
+0237   0118 CD 97 01    	    call	cls
+0238   011B CD F2 02    	    call	readoff     ;do one reading
+0239   011E 18 F2       	    jr		main2	    ;loop again
+0240   0120             
+0241   0120             
+0242   0120             ;******************************************************************************
+0243   0120             ;waitnext Subroutine
+0244   0120             ;Registers Used:
+0245   0120             ;This subroutine waits until the weight has settled to read off the weight
+0246   0120             ;
+0247   0120             ;******************************************************************************
+0248   0120             ;
+0249   0120             
+0250   0120 F5          waitnext    push	af
+0251   0121 C5          	    push	bc
+0252   0122 D5          	    push	de
+0253   0123 E5          	    push	hl
+0254   0124 21 16 80    	    ld		hl,waitlast
+0255   0127             
+0256   0127 CD 72 02    waitnexta   call	read
+0257   012A 3A 01 80    	    ld		a,(value)
+0258   012D 46          	    ld		b,(hl)
+0259   012E B8          	    cp		b
+0260   012F 28 F6       	    jr		z,waitnexta
+0261   0131             
+0262   0131 CD 72 02    waitnext2   call	read	    ;loop nothing until weight > 5lbs
+0263   0134 3A 01 80    	    ld		a,(value)
+0264   0137 77          	    ld		(hl),a
+0265   0138 FE 05       	    cp		holdweight  ;don't do readout under minimum weight
+0266   013A 38 F5       	    jr		c,waitnext2
+0267   013C FE FB       	    cp		0-holdweight
+0268   013E 30 F1       	    jr		nc,waitnext2;don't do readout if out of range
+0269   0140 77          	    ld		(hl),a	    ;load holding weight
+0270   0141             
+0271   0141 06 00       	    ld		b,0	    ;reset holding timer
+0272   0143             
+0273   0143             
+0274   0143 04          waitnext3   inc 	b	    ;increment speak-nothing timer
+0275   0144 CD 5C 01    	    call	miniwait
+0276   0147 78          	    ld		a,b
+0277   0148 FE 0C       	    cp		holdtime
+0278   014A 28 0B       	    jr		z,waitnexte ;weight is holding, leave wait
+0279   014C CD 72 02    	    call	read
+0280   014F 3A 01 80    	    ld		a,(value)
+0281   0152 BE          	    cp		(hl)
+0282   0153 28 EE       	    jr		z,waitnext3 ;loop hold end
+0283   0155 18 DA       	    jr		waitnext2   ;weight changed, start holding over
+0284   0157             
+0285   0157 E1          waitnexte   pop 	hl
+0286   0158 D1          	    pop 	de
+0287   0159 C1          	    pop 	bc
+0288   015A F1          	    pop 	af
+0289   015B C9          	    ret
+0290   015C             
+0291   015C             ;******************************************************************************
+0292   015C             ;miniwait Subroutine
+0293   015C             ;Registers Used:
+0294   015C             ;This subroutine produces a small delay
+0295   015C             ;
+0296   015C             ;******************************************************************************
+0297   015C             ;
+0298   015C F5          miniwait    push	af
+0299   015D C5          	    push	bc
+0300   015E 06 00       	    ld		b,0
+0301   0160 CD 72 02    miniwait1   call	read
+0302   0163 10 FB       	    djnz	miniwait1
+0303   0165 C1          	    pop 	bc
+0304   0166 F1          	    pop 	af
+0305   0167 C9          	    ret
+0306   0168             
+0307   0168             ;*******************************************************************************
+0308   0168             ;name display Subroutine
+0309   0168             ;Registers used:
+0310   0168             ;This subroutine displays my name to the lcd upon power-up
+0311   0168             ;
+0312   0168             ;*******************************************************************************
+0313   0168             ;
+0314   0168 CD 97 01    namedisp    call	cls
+0315   016B CD A3 01                call        name
+0316   016E C9                      ret
+0317   016F             
+0318   016F             ;******************************************************************************
+0319   016F             ;init_lcd Subroutine
+0320   016F             ;Registers Used:
+0321   016F             ;This subroutine initializes the lcd display
+0322   016F             ;
+0323   016F             ;******************************************************************************
+0324   016F             ;
+0325   016F             init_lcd
+0326   016F 3E 38       	    ld		a,lcd_set   ;function set
+0327   0171 D3 00                   out         (chk_wrt),a
+0328   0173 CD 8E 01                call        bus_sig
+0329   0176 3E 0F       	    ld		a,get_wrd   ;display/cursor on/on
+0330   0178 D3 00                   out         (chk_wrt),a
+0331   017A CD 8E 01                call        bus_sig
+0332   017D 3E 01       	    ld		a,lcd_str   ;diplay clear
+0333   017F D3 00                   out         (chk_wrt),a
+0334   0181 CD 8E 01                call        bus_sig
+0335   0184 3E 06       	    ld		a,set_ent   ;entry mode set
+0336   0186 D3 00                   out         (chk_wrt),a
+0337   0188 AF          	    xor 	a
+0338   0189 32 15 80    	    ld		(xpos),a    ;reset x-position to 0 on lcd
+0339   018C F1          	    pop 	af
+0340   018D C9                      ret
+0341   018E             
+0342   018E             
+0343   018E             ;******************************************************************************
+0344   018E             ;bus_sig Subroutine
+0345   018E             ;Registers Used:
+0346   018E             ;This subroutine checks the busy status of the lcd display
+0347   018E             ;
+0348   018E             ;******************************************************************************
+0349   018E             ;
+0350   018E F5          bus_sig     push	af
+0351   018F DB 02       bus_sig1    in		a,(chk_rd)
+0352   0191 CB 7F                   bit         7,a
+0353   0193 20 FA       	    jr		nz,bus_sig1
+0354   0195 F1          	    pop 	af
+0355   0196 C9                      ret
+0356   0197             
+0357   0197             ;******************************************************************************
+0358   0197             ;cls Subroutine
+0359   0197             ;Registers Used:
+0360   0197             ;This subroutine clears the lcd display
+0361   0197             ;
+0362   0197             ;******************************************************************************
+0363   0197             ;
+0364   0197 F5          cls	    push	af
+0365   0198 C5          	    push	bc
+0366   0199 D5          	    push	de
+0367   019A E5          	    push	hl
+0368   019B CD 6F 01    	    call	init_lcd
+0369   019E E1          	    pop 	hl
+0370   019F D1          	    pop 	de
+0371   01A0 C1          	    pop 	bc
+0372   01A1 F1          	    pop 	af
+0373   01A2 C9          	    ret
+0374   01A3             
+0375   01A3             ;******************************************************************************
+0376   01A3             ;name Subroutine
+0377   01A3             ;Registers Used:
+0378   01A3             ;This subroutine prints out my name.
+0379   01A3             ;
+0380   01A3             ;******************************************************************************
+0381   01A3             ;
+0382   01A3 21 68 04    name	    ld		hl,word3
+0383   01A6 CD AA 01    	    call	prtstg
+0384   01A9 C9                      ret
+0385   01AA             
+0386   01AA             
+0387   01AA             
+0388   01AA             ;*******************************************************************************
+0389   01AA             ;prtstg Subroutine
+0390   01AA             ;Registers Used:
+0391   01AA             ;This subroutine outputs a string pointed to by the HL-reg, terminated with nul.
+0392   01AA             ;
+0393   01AA             ;*******************************************************************************
+0394   01AA             ;
+0395   01AA 7E          prtstg	    ld		a,(hl)	    ;fetch character to be printed
+0396   01AB B7          	    or		a	    ;check for terminating null character
+0397   01AC C8                      ret         z
+0398   01AD CD B3 01    	    call	chrout	    ;print it
+0399   01B0 23          	    inc 	hl	    ;move to next character in the string
+0400   01B1 18 F7       	    jr		prtstg	    ;re-run the loop
+0401   01B3             
+0402   01B3             
+0403   01B3             ;*******************************************************************************
+0404   01B3             ;chrout Subroutine
+0405   01B3             ;Registers Used:        af
+0406   01B3             ;This subroutine outputs a A-reg character to the LCD screen.
+0407   01B3             ;
+0408   01B3             ;*******************************************************************************
+0409   01B3             ;
+0410   01B3 F5          chrout      push        af
+0411   01B4 C5                      push        bc
+0412   01B5 D5                      push        de
+0413   01B6 E5                      push        hl
+0414   01B7 FE 20       	    cp		$20	    ;check for control characters
+0415   01B9 38 08       	    jr		c,control   ;if they are not printable, control...
+0416   01BB CD 1B 02    	    call	outlcd	    ;output to the lcd
+0417   01BE CD 0A 02    	    call	nextchr     ;move character to the next location
+0418   01C1 18 31       	    jr		chroute
+0419   01C3             
+0420   01C3 F5          control     push        af
+0421   01C4 FE 01                   cp          clrscrctrl
+0422   01C6 20 05                   jr          nz,right
+0423   01C8             
+0424   01C8 CD 97 01    clrscr	    call	cls
+0425   01CB 18 24                   jr          controle
+0426   01CD             
+0427   01CD FE 06       right       cp          rightctrl   ;backspace one character
+0428   01CF 20 0A                   jr          nz,left
+0429   01D1 3E 14                   ld          a,00010100b
+0430   01D3 CD 1B 02                call        outlcd
+0431   01D6 CD 0A 02    	    call	nextchr
+0432   01D9 18 16                   jr          controle
+0433   01DB             
+0434   01DB FE 07       left        cp          leftctrl
+0435   01DD 20 07                   jr          nz,del
+0436   01DF 3E 15                   ld          a,00010101b
+0437   01E1 CD 1B 02                call        outlcd
+0438   01E4 18 0B                   jr          controle
+0439   01E6             
+0440   01E6 FE 08       del         cp          delctrl
+0441   01E8 20 07                   jr          nz,controle
+0442   01EA 3E 14                   ld          a,00010100b
+0443   01EC CD 1B 02                call        outlcd
+0444   01EF 18 00                   jr          controle
+0445   01F1             
+0446   01F1 F1          controle    pop         af
+0447   01F2 18 00                   jr          chroute
+0448   01F4             
+0449   01F4 E1          chroute     pop         hl
+0450   01F5 D1                      pop         de
+0451   01F6 C1                      pop         bc
+0452   01F7 F1                      pop         af
+0453   01F8 C9                      ret
+0454   01F9             
+0455   01F9             
+0456   01F9             ;******************************************************************************
+0457   01F9             ;diplayrt Subroutine
+0458   01F9             ;Registers Used:
+0459   01F9             ;This subroutine shifts the cursor address to the right half of the display.
+0460   01F9             ;
+0461   01F9             ;******************************************************************************
+0462   01F9             ;
+0463   01F9 F5          displayrt   push	af
+0464   01FA 3E C0       	    ld		a,dis_2
+0465   01FC D3 00       	    out 	(chk_wrt),a
+0466   01FE CD 8E 01    	    call	bus_sig
+0467   0201 3E C0       	    ld		a,$c0
+0468   0203 D3 00       	    out 	(chk_wrt),a
+0469   0205 CD 8E 01    	    call	bus_sig
+0470   0208 F1          	    pop 	af
+0471   0209 C9          	    ret
+0472   020A             
+0473   020A             ;*******************************************************************************
+0474   020A             ; nextchr Subroutine
+0475   020A             ;Registers Used:
+0476   020A             ;This subroutine advances the lcd character position one space
+0477   020A             ;
+0478   020A             ;*******************************************************************************
+0479   020A             ;
+0480   020A F5          nextchr     push	af
+0481   020B 3A 15 80    	    ld		a,(xpos)
+0482   020E 3C          	    inc 	a
+0483   020F 32 15 80    	    ld		(xpos),a
+0484   0212 FE 08       	    cp		8
+0485   0214 20 03       	    jr		nz,nextchre
+0486   0216             
+0487   0216 CD F9 01    	    call	displayrt
+0488   0219 F1          nextchre    pop 	af
+0489   021A C9          	    ret 		    ;not needed in this application
+0490   021B             
+0491   021B             
+0492   021B             ;*******************************************************************************
+0493   021B             ;outlcd Subroutine
+0494   021B             ;Registers Used:        af
+0495   021B             ;This subroutine outputs a character directly to the LCD port.
+0496   021B             ;
+0497   021B             ;*******************************************************************************
+0498   021B             ;
+0499   021B F5          outlcd      push        af
+0500   021C CD 8E 01    	    call	bus_sig     ;the LCD might be a little slow today
+0501   021F D3 01       	    out 	($01),a
+0502   0221 F1                      pop         af
+0503   0222 C9                      ret
+0504   0223             
+0505   0223             ;*******************************************************************************
+0506   0223             ;clearscale Subroutine
+0507   0223             ;Register Notes:        none
+0508   0223             ;This subroutine clears the weight variable.
+0509   0223             ;
+0510   0223             ;*******************************************************************************
+0511   0223             ;
+0512   0223 F5          clearscale  push        af
+0513   0224 E5                      push        hl
+0514   0225 CD 64 02                call        reset
+0515   0228 21 00 00                ld          hl,0
+0516   022B 22 01 80                ld          (value),hl
+0517   022E E1                      pop         hl
+0518   022F F1                      pop         af
+0519   0230 C9                      ret
+0520   0231             
+0521   0231             ;*******************************************************************************
+0522   0231             ;scaletest Subroutine
+0523   0231             ;Register Notes:        none
+0524   0231             ;This subroutine tests the scale pulse decoder through the buffer subroutine.
+0525   0231             ;
+0526   0231             ;*******************************************************************************
+0527   0231             ;
+0528   0231 CD 23 02    scaletest   call        clearscale
+0529   0234 21 00 00                ld          hl,0
+0530   0237 CD 64 02                call        reset       ;initialize the weight variable
+0531   023A             
+0532   023A CD 72 02    demo2       call        read
+0533   023D 3E 0D                   ld          a,$d
+0534   023F CD B3 01    	    call	chrout
+0535   0242 2A 01 80                ld          hl,(value)
+0536   0245 CD F8 00                call        $f8
+0537   0248 18 F0                   jr          demo2
+0538   024A             
+0539   024A             ;*******************************************************************************
+0540   024A             ;scaletest2 Subroutine
+0541   024A             ;Register Notes:        none
+0542   024A             ;This subroutine tests the scale pulse decoder directly.
+0543   024A             ;
+0544   024A             ;*******************************************************************************
+0545   024A             ;
+0546   024A CD 23 02    scaletest2  call        clearscale
+0547   024D 21 00 00                ld          hl,0
+0548   0250 CD 64 02                call        reset       ;initialize the weight variable
+0549   0253             
+0550   0253 DB 08       demoa       in          a,(scale)
+0551   0255 F5                      push        af
+0552   0256 3E 0D                   ld          a,$d
+0553   0258 CD B3 01    	    call	chrout
+0554   025B F1                      pop         af
+0555   025C 6F                      ld          l,a
+0556   025D 26 00                   ld          h,0
+0557   025F CD F8 00                call        $f8
+0558   0262 18 EF                   jr          demoa
+0559   0264             
+0560   0264             ;*******************************************************************************
+0561   0264             ; reset Subroutine:
+0562   0264             ; Register Notes:       af
+0563   0264             ; This subroutine resets the 'weight' variable and enables the read subroutine.
+0564   0264             ;
+0565   0264             ;*******************************************************************************
+0566   0264             ;
+0567   0264 AF          reset       xor         a
+0568   0265 32 01 80                ld          (value),a   ;reset weight variable
+0569   0268 32 00 80                ld          (last),a    ;store initial vector
+0570   026B CD D0 02                call        inscale
+0571   026E 32 00 80                ld          (last),a    ;store initial vector
+0572   0271 C9                      ret
+0573   0272             
+0574   0272             ;*******************************************************************************
+0575   0272             ; read Subroutine:
+0576   0272             ; Register Notes:       af, bc.
+0577   0272             ; This subroutine updates the 'weight' variable.
+0578   0272             ;
+0579   0272             ;*******************************************************************************
+0580   0272             ;0230230230230230230230230230230230230230230230230230230230230230230230230230230
+0581   0272             ;
+0582   0272 C5          read        push        bc
+0583   0273 3A 00 80                ld          a,(last)
+0584   0276 4F                      ld          c,a
+0585   0277 CD D0 02                call        inscale     ;get the pulse value
+0586   027A 47                      ld          b,a         ;b=current, c=previous
+0587   027B             
+0588   027B B7                      or          a
+0589   027C 20 0B                   jr          nz,cond1
+0590   027E                                                 ;0
+0591   027E 79          cond0       ld          a,c
+0592   027F FE 03                   cp          3           ;3i
+0593   0281 28 25                   jr          z,ince
+0594   0283 FE 02                   cp          2           ;2d
+0595   0285 28 26                   jr          z,dece
+0596   0287 18 29                   jr          end
+0597   0289             
+0598   0289 78          cond1       ld          a,b
+0599   028A FE 02                   cp          2
+0600   028C 20 0A                   jr          nz,cond2
+0601   028E                                                 ;2
+0602   028E 79                      ld          a,c
+0603   028F B7                      or          a           ;0i
+0604   0290 28 16                   jr          z,ince
+0605   0292 FE 03                   cp          3           ;3d
+0606   0294 28 17                   jr          z,dece
+0607   0296 18 1A                   jr          end
+0608   0298             
+0609   0298 78          cond2       ld          a,b
+0610   0299 FE 03                   cp          3
+0611   029B C2 C6 0B                jp          nz,$bc6
+0612   029E                                                 ;3
+0613   029E 79                      ld          a,c
+0614   029F FE 02                   cp          2           ;2i
+0615   02A1 28 05                   jr          z,ince
+0616   02A3 B7                      or          a           ;0d
+0617   02A4 28 07                   jr          z,dece
+0618   02A6 18 0A                   jr          end
+0619   02A8             
+0620   02A8 CD B4 02    ince        call        incbuf
+0621   02AB 18 05                   jr          end
+0622   02AD             
+0623   02AD CD C2 02    dece        call        decbuf
+0624   02B0 18 00                   jr          end
+0625   02B2             
+0626   02B2 C1          end         pop         bc
+0627   02B3 C9                      ret
+0628   02B4             
+0629   02B4             ;*******************************************************************************
+0630   02B4             ;incbuf Subroutine
+0631   02B4             ;Register Notes:        none
+0632   02B4             ;This subroutine increments the weight value.
+0633   02B4             ;
+0634   02B4             ;*******************************************************************************
+0635   02B4             ;
+0636   02B4 F5          incbuf      push        af
+0637   02B5 78                      ld          a,b
+0638   02B6 32 00 80                ld          (last),a
+0639   02B9 3A 01 80                ld          a,(value)
+0640   02BC 3C                      inc         a
+0641   02BD 32 01 80                ld          (value),a
+0642   02C0 F1                      pop         af
+0643   02C1 C9                      ret
+0644   02C2             
+0645   02C2             ;*******************************************************************************
+0646   02C2             ;decbuf Subroutine
+0647   02C2             ;Register Notes:        none
+0648   02C2             ;This subroutine decrements the weight value.
+0649   02C2             ;
+0650   02C2             ;*******************************************************************************
+0651   02C2             ;
+0652   02C2 F5          decbuf      push        af
+0653   02C3 78                      ld          a,b
+0654   02C4 32 00 80                ld          (last),a
+0655   02C7 3A 01 80                ld          a,(value)
+0656   02CA 3D                      dec         a
+0657   02CB 32 01 80                ld          (value),a
+0658   02CE F1                      pop         af
+0659   02CF C9                      ret
+0660   02D0             
+0661   02D0             ;*******************************************************************************
+0662   02D0             ;inscale Subroutine
+0663   02D0             ;Register Notes:        af
+0664   02D0             ;This subroutine reads the value of the port and returns a valid value.
+0665   02D0             ;
+0666   02D0             ;*******************************************************************************
+0667   02D0             ;
+0668   02D0 DB 08       inscale     in          a,(scale)
+0669   02D2 E6 03                   and         11b
+0670   02D4 FE 01                   cp          1           ;eliminate invalid error readings
+0671   02D6 20 03                   jr          nz,inscalee
+0672   02D8 3A 00 80                ld          a,(last)
+0673   02DB C9          inscalee    ret
+0674   02DC             
+0675   02DC             ;*******************************************************************************
+0676   02DC             ;wait Subroutine
+0677   02DC             ;Register Notes:        none
+0678   02DC             ;This subroutine causes a wait and reads the scale during the intermission.
+0679   02DC             ;
+0680   02DC             ;*******************************************************************************
+0681   02DC             ;
+0682   02DC F5          wait        push        af
+0683   02DD C5                      push        bc
+0684   02DE D5          	    push	de
+0685   02DF E5          	    push	hl
+0686   02E0             
+0687   02E0 01 29 00                ld          bc,waitime  ;set delay
+0688   02E3 CD 72 02    wait2       call        read        ;adjust scale weight
+0689   02E6 10 FB                   djnz        wait2
+0690   02E8 0D                      dec         c
+0691   02E9 78                      ld          a,b
+0692   02EA B1                      or          c
+0693   02EB 20 F6                   jr          nz,wait2    ;burn off calories
+0694   02ED             
+0695   02ED E1          	    pop 	hl
+0696   02EE D1          	    pop 	de
+0697   02EF C1                      pop         bc
+0698   02F0 F1                      pop         af
+0699   02F1 C9                      ret
+0700   02F2             
+0701   02F2             ;*******************************************************************************
+0702   02F2             ;readoff Subroutine
+0703   02F2             ;Register Notes:        none
+0704   02F2             ;This subroutine reads off the weight through the digitalker.
+0705   02F2             ;
+0706   02F2             ;*******************************************************************************
+0707   02F2             ;
+0708   02F2             
+0709   02F2 F5          readoff     push        af
+0710   02F3 C5                      push        bc
+0711   02F4 D5                      push        de
+0712   02F5 E5                      push        hl
+0713   02F6             
+0714   02F6 3A 01 80    	    ld		a,(value)
+0715   02F9 32 17 80    	    ld		(weightloc),a
+0716   02FC             
+0717   02FC F5          	    push	af			;speak "weight is"
+0718   02FD 3E 8F                   ld          a,10001111b ;"weight"
+0719   02FF CD BF 03                call        readout
+0720   0302 3E 60                   ld          a,01100000b ;"is"
+0721   0304 CD BF 03                call        readout
+0722   0307 F1                      pop         af
+0723   0308             
+0724   0308 F5          	    push	af
+0725   0309 CD 56 03    	    call	weightout   ;call out the weight
+0726   030C F1          	    pop 	af
+0727   030D             
+0728   030D FE 14       	    cp		20	    ;
+0729   030F 30 09                   jr          nc,continue
+0730   0311 FE 0A                   cp          10
+0731   0313 38 05                   jr          c,continue
+0732   0315 CD BF 03    	    call	readout     ;read em out load
+0733   0318 18 2B                   jr          readoffe
+0734   031A             
+0735   031A             ;speak out from millions ... to tens to ones:
+0736   031A             
+0737   031A 11 0B 80    continue    ld		de,dectext		;get weight
+0738   031D 3A 17 80    	    ld		a,(weightloc)		;buffer area
+0739   0320 26 00                   ld          h,0
+0740   0322 6F                      ld          l,a
+0741   0323 D5                      push        de
+0742   0324 E5                      push        hl
+0743   0325 CD D2 03                call        bin2asc
+0744   0328 E1                      pop         hl
+0745   0329 D1                      pop         de
+0746   032A             
+0747   032A EB                      ex          de,hl
+0748   032B 2B                      dec         hl
+0749   032C 06 06       	    ld		b,5+1	    ;number of locations to read
+0750   032E             
+0751   032E             ;B-reg:     exponent value
+0752   032E             ;A-reg:     mantissa
+0753   032E             ;HL-regs:   pointer
+0754   032E             
+0755   032E 05          readoff2    dec         b
+0756   032F 23                      inc         hl
+0757   0330 28 13                   jr          z,readoffe  ;end of readoff
+0758   0332             
+0759   0332 7E                      ld          a,(hl)      ;fetch current digit
+0760   0333 FE 20                   cp          space
+0761   0335 28 F7                   jr          z,readoff2  ;ignore leading spaces
+0762   0337 FE 00                   cp          nul
+0763   0339 28 0A                   jr          z,readoffe  ;done
+0764   033B D6 30                   sub         '0'         ;convert to binary
+0765   033D CD 6B 03                call        convert     ;convert digit into proper weighted word
+0766   0340 CD BF 03                call        readout     ;read it out loud
+0767   0343 18 E9                   jr          readoff2    ;continue loop until all words are spoken
+0768   0345             
+0769   0345 F5          readoffe    push        af
+0770   0346 3E 7B                   ld          a,01111011b ;"pound"
+0771   0348 CD BF 03                call        readout
+0772   034B 3E 81                   ld          a,10000001b ;"'s"
+0773   034D CD BF 03                call        readout
+0774   0350 F1                      pop         af
+0775   0351             
+0776   0351 E1                      pop         hl
+0777   0352 D1                      pop         de
+0778   0353 C1                      pop         bc
+0779   0354 F1                      pop         af
+0780   0355 C9                      ret
+0781   0356             
+0782   0356             ;*******************************************************************************
+0783   0356             ;weightout Subroutine
+0784   0356             ;Registers Used:
+0785   0356             ;This subroutine prints out the weight on the lcd.
+0786   0356             ;
+0787   0356             ;*******************************************************************************
+0788   0356             ;
+0789   0356             
+0790   0356 F5          weightout   push        af
+0791   0357 C5                      push        bc
+0792   0358 D5                      push        de
+0793   0359 E5                      push        hl
+0794   035A 21 5C 04                ld          hl,weight1
+0795   035D CD AA 01                call        prtstg
+0796   0360 3A 17 80    	    ld		a,(weightloc)
+0797   0363 CD C7 03    	    call	dec2lcd
+0798   0366 E1                      pop         hl
+0799   0367 D1                      pop         de
+0800   0368 C1                      pop         bc
+0801   0369 F1                      pop         af
+0802   036A C9                      ret
+0803   036B             
+0804   036B             
+0805   036B             ;*******************************************************************************
+0806   036B             ;convert Subroutine
+0807   036B             ;Register Notes:        af, b.
+0808   036B             ;This subroutine converts the current digital into the proper word(s) to say
+0809   036B             ;A-reg is the mantissa, B-reg is the exponent.
+0810   036B             ;*******************************************************************************
+0811   036B             ;
+0812   036B C5          convert     push        bc
+0813   036C             
+0814   036C 4F                      ld          c,a
+0815   036D 78                      ld          a,b         ;check exponent
+0816   036E FE 01                   cp          1
+0817   0370 20 03                   jr          nz,convert2
+0818   0372 79                      ld          a,c
+0819   0373 18 17                   jr          converte    ;ones, no exponent
+0820   0375             
+0821   0375 FE 02       convert2    cp          2
+0822   0377 20 0C                   jr          nz,convert3 ;9x,8x,7x,6x,5x,4x,3x,2x.
+0823   0379 79                      ld          a,c
+0824   037A B7                      or          a
+0825   037B 28 11                   jr          z,convertz
+0826   037D FE 01                   cp          1
+0827   037F 28 12                   jr          z,convertt
+0828   0381 C6 12                   add         a,10100b-2d
+0829   0383 18 07                   jr          converte
+0830   0385             
+0831   0385 79          convert3    ld          a,c         ;x00,x000,x0000...
+0832   0386 CD BF 03                call        readout     ;speak value
+0833   0389 78                      ld          a,b
+0834   038A C6 19                   add         a,11100b-3d ;speak exponent
+0835   038C                                                                
+0836   038C C1          converte    pop         bc
+0837   038D C9                      ret
+0838   038E             
+0839   038E CD BF 03    convertz    call        readout
+0840   0391 18 F9                   jr          converte
+0841   0393             
+0842   0393 05          convertt    dec         b
+0843   0394 23                      inc         hl
+0844   0395 7E                      ld          a,(hl)
+0845   0396 D6 30                   sub         '0'
+0846   0398 C6 0A                   add         a,10
+0847   039A E1                      pop         hl
+0848   039B C9                      ret
+0849   039C             
+0850   039C             ;*******************************************************************************
+0851   039C             ;asc2bin Subroutine
+0852   039C             ;Register Notes:        none
+0853   039C             ;This subroutine converts ascii text into digitalker numbers.
+0854   039C             ;
+0855   039C             ;*******************************************************************************
+0856   039C             ;
+0857   039C F5          asc2bin     push        af
+0858   039D C5                      push        bc
+0859   039E D5                      push        de
+0860   039F E5                      push        hl
+0861   03A0 21 3A 04                ld          hl,asctable
+0862   03A3 E5                      push        hl
+0863   03A4 D1                      pop         de
+0864   03A5 13                      inc         de
+0865   03A6 46          asc2binl    ld          b,(hl)      ;fetch one off the tree
+0866   03A7 B8                      cp          b
+0867   03A8 28 0C                   jr          z,asc2bin2  ;is it the word of the day?
+0868   03AA             
+0869   03AA 4F                      ld          c,a         ;check for end of table
+0870   03AB 7E                      ld          a,(hl)
+0871   03AC B7                      or          a
+0872   03AD 79                      ld          a,c
+0873   03AE 28 0A                   jr          z,asc2bine
+0874   03B0             
+0875   03B0 23                      inc         hl          ;increment table loop
+0876   03B1 23                      inc         hl
+0877   03B2 13                      inc         de
+0878   03B3 13                      inc         de
+0879   03B4 18 F0                   jr          asc2binl
+0880   03B6             
+0881   03B6 1A          asc2bin2    ld          a,(de)
+0882   03B7 CD BF 03                call        readout
+0883   03BA             
+0884   03BA E1          asc2bine    pop         hl
+0885   03BB D1                      pop         de
+0886   03BC C1                      pop         bc
+0887   03BD F1                      pop         af
+0888   03BE C9                      ret
+0889   03BF             
+0890   03BF             ;*******************************************************************************
+0891   03BF             ;readout Subroutine
+0892   03BF             ;Register Notes:        af
+0893   03BF             ;This subroutine articulates one word of the A-reg through the digitalker.
+0894   03BF             ;
+0895   03BF             ;*******************************************************************************
+0896   03BF             ;
+0897   03BF B7          readout     or          a           ;say nothing if no word to be spoken
+0898   03C0 C8                      ret         z
+0899   03C1 D3 18                   out         (digitalker),a
+0900   03C3 CD DC 02                call        wait
+0901   03C6 C9                      ret
+0902   03C7             
+0903   03C7             ;*******************************************************************************
+0904   03C7             ; dec2lcd Subroutine:
+0905   03C7             ; Registers Used:
+0906   03C7             ; Stack Used:
+0907   03C7             ; This subroutine prints out the A-Register as a decimal number to the screen.
+0908   03C7             ;
+0909   03C7             ;
+0910   03C7             ;*******************************************************************************
+0911   03C7             ;
+0912   03C7 F5          dec2lcd     push	af
+0913   03C8 E5          	    push	hl
+0914   03C9 6F          	    ld		l,a
+0915   03CA 26 00       	    ld		h,0
+0916   03CC CD 18 04    	    call	p_int
+0917   03CF E1          	    pop 	hl
+0918   03D0 F1          	    pop 	af
+0919   03D1 C9          	    ret
+0920   03D2             
+0921   03D2             ;
+0922   03D2             ;******************************************************************************
+0923   03D2             ;bin2asc -- this subroutine converts an unsigned int type in hl into decimal
+0924   03D2             ;ascii that is stored in a buffer pointed by de.  it is used internally by
+0925   03D2             ;p_int and has potential use where formatted integer output is required.
+0926   03D2             ;
+0927   03D2             ;call must load hl with the value and point de to a suitable buffer area.
+0928   03D2             ;the buffer must be at least 6 characters in length, as bin2asc will fill it
+0929   03D2             ;with up to a 5 digit number, and a zero terminator byte.  bin2asc performs
+0930   03D2             ;leading zero suppression (leading zeroes are converted to 20h space codes).
+0931   03D2             ;on return, hl and de will have their original values.
+0932   03D2             ;******************************************************************************
+0933   03D2             ;
+0934   03D2 F5          bin2asc     push	af
+0935   03D3 C5          	    push	bc
+0936   03D4 D5          	    push	de
+0937   03D5 E5          	    push	hl
+0938   03D6 DD E5       	    push	ix
+0939   03D8 D5          	    push	de
+0940   03D9 D5          	    push	de
+0941   03DA 06 05       	    ld		b,05
+0942   03DC 3E 30       	    ld		a,'0'
+0943   03DE 12          bin2asc1    ld		(de),a
+0944   03DF 13          	    inc 	de
+0945   03E0 10 FC       	    djnz	bin2asc1
+0946   03E2 AF          	    xor 	a
+0947   03E3 12          	    ld		(de),a
+0948   03E4 DD E1       	    pop 	ix
+0949   03E6 01 50 04    	    ld		bc,bintbl
+0950   03E9 0A          bin2asc5    ld		a,(bc)
+0951   03EA 5F          	    ld		e,a
+0952   03EB 03          	    inc 	bc
+0953   03EC 0A          	    ld		a,(bc)
+0954   03ED 57          	    ld		d,a
+0955   03EE 03          	    inc 	bc
+0956   03EF B3          	    or		e
+0957   03F0 28 0F       	    jr		z,bin2asc2
+0958   03F2 B7          bin2asc4    or		a
+0959   03F3 ED 52       	    sbc 	hl,de
+0960   03F5 38 05       	    jr		c,bin2asc3
+0961   03F7 DD 34 00    	    inc 	(ix+00)
+0962   03FA 18 F6       	    jr		bin2asc4
+0963   03FC 19          bin2asc3    add 	hl,de
+0964   03FD DD 23       	    inc 	ix
+0965   03FF 18 E8       	    jr		bin2asc5
+0966   0401 E1          bin2asc2    pop 	hl
+0967   0402 06 04       	    ld		b,04
+0968   0404 7E          bin2asc8    ld		a,(hl)
+0969   0405 B7          	    or		a
+0970   0406 28 09       	    jr		z,bin2asc7
+0971   0408 FE 30       	    cp		'0'
+0972   040A 20 05       	    jr		nz,bin2asc7
+0973   040C 36 20       	    ld		(hl),space
+0974   040E 23          	    inc 	hl
+0975   040F 10 F3       	    djnz	bin2asc8
+0976   0411 DD E1       bin2asc7    pop 	ix
+0977   0413 E1          	    pop 	hl
+0978   0414 D1          	    pop 	de
+0979   0415 C1          	    pop 	bc
+0980   0416 F1          	    pop 	af
+0981   0417 C9          	    ret
+0982   0418             
+0983   0418             
+0984   0418             ;*******************************************************************************
+0985   0418             ;p_int -- prints the contents of the hl register pair as an unsigned decimal
+0986   0418             ;integer.  leading zero suppression is automatic, and no spaces are printed on
+0987   0418             ;either side of the number.  output goes to the current output device, normally
+0988   0418             ;the screen.  load hl with the value to print and call p_int.  10 bytes of stack
+0989   0418             ;are required.
+0990   0418             ;*******************************************************************************
+0991   0418             ;
+0992   0418 E5          p_int	    push	hl
+0993   0419 D5          	    push	de
+0994   041A F5          	    push	af
+0995   041B EB          	    ex		de,hl
+0996   041C 21 F8 FF    	    ld		hl,0fff8h
+0997   041F 39          	    add 	hl,sp
+0998   0420 F9          	    ld		sp,hl
+0999   0421 EB          	    ex		de,hl
+1000   0422 CD D2 03    	    call	bin2asc
+1001   0425 1A          p_inta	    ld		a,(de)
+1002   0426 FE 14       	    cp		20
+1003   0428 20 03       	    jr		nz,p_int1
+1004   042A 13          	    inc 	de
+1005   042B 18 F8       	    jr		p_inta
+1006   042D EB          p_int1	    ex		de,hl
+1007   042E CD AA 01    	    call	prtstg
+1008   0431 21 08 00    	    ld		hl,0008h
+1009   0434 39          	    add 	hl,sp
+1010   0435 F9          	    ld		sp,hl
+1011   0436 F1          	    pop 	af
+1012   0437 D1          	    pop 	de
+1013   0438 E1          	    pop 	hl
+1014   0439 C9          	    ret
+1015   043A             
+1016   043A 30 1F       asctable    .db         '0',        00011111b
+1017   043C 31 01                   .db         '1',        1
+1018   043E 32 02                   .db         '2',        2
+1019   0440 33 03                   .db         '3',        3
+1020   0442 34 04                   .db         '4',        4
+1021   0444 35 05                   .db         '5',        5
+1022   0446 36 06                   .db         '6',        6
+1023   0448 37 07                   .db         '7',        7
+1024   044A 38 08                   .db         '8',        8
+1025   044C 39 09                   .db         '9',        9
+1026   044E 00 00                   .db         0,0
+1027   0450             
+1028   0450 1027E8036400 bintbl	    .db 	10h, 27h,0e8h, 03h, 64h, 00h, 0ah
+1028   0456 0A
+1029   0457 0001000000  	    .db 	00h, 01h, 00h, 00h, 00h
+1030   045C             
+1031   045C 576569676874 weight1     .text	"Weight is: \000"
+1031   0462 2069733A2000
+1032   0468 204A414D4553 word3	    .text	" JAMES O. SIME\000"
+1032   046E 204F2E2053494D4500
+1033   0477 6C636420776F lcdmsg	    .text	"lcd works!\000"
+1033   047D 726B732100
+1034   0482 72616D206861 ramerrmsg   .text	"ram has errors!\000"
+1034   0488 73206572726F72732100
+1035   0492 726F6D206F6B ramokmsg    .text	"rom ok! ram ok!\000"
+1035   0498 212072616D206F6B2100
+1036   04A2 696E76616C69 rombadmsg   .text	"invalid rom checksum!\000"
+1036   04A8 6420726F6D20636865636B73756D2100
+1037   04B8             
+1038   04B8             ;*******************************************************************************
+1039   04B8             ;*******************************************************************************
+1040   04B8             ;ramstart
+1041   04B8             ;*******************************************************************************
+1042   04B8             ;*******************************************************************************
+1043   8000             	    .org	ramstart
+1044   8000             
+1045   8000             last	    .ds 	1	    ;variable:	last value read
+1046   8001             value	    .ds 	10	    ;variable:	current weight
+1047   800B             dectext     .ds 	10	    ;buffer:	decimal text
+1048   8015             xpos	    .ds 	1
+1049   8016             waitlast    .ds 	1	    ;last holding weight
+1050   8017             weightloc   .ds 	1	    ;temporary scratchpad
+1051   8018             progend     .end
+
+
+
+Label        Value      Label        Value      Label        Value      Label        Value      Label        Value
+------------------      ------------------      ------------------      ------------------      ------------------
+asc2bin       039C      asc2binl      03A6      asc2bin2      03B6      asc2bine      03BA      asctable      043A      
+bus_sig       018E      bus_sig1      018F      bin2asc       03D2      bin2asc1      03DE      bin2asc5      03E9      
+bin2asc4      03F2      bin2asc3      03FC      bin2asc2      0401      bin2asc8      0404      bin2asc7      0411      
+bintbl        0450      chk_wrt       0000      chk_rd        0002      clrscrctrl    0001      cls           0197      
+chrout        01B3      control       01C3      clrscr        01C8      controle      01F1      chroute       01F4      
+clearscale    0223      cond0         027E      cond1         0289      cond2         0298      continue      031A      
+convert       036B      convert2      0375      convert3      0385      converte      038C      convertz      038E      
+convertt      0393      digitalker    0018      dat_len       000F      dis_2         00C0      delctrl       0008      
+del           01E6      displayrt     01F9      demo2         023A      demoa         0253      dece          02AD      
+decbuf        02C2      dec2lcd       03C7      dectext       800B      end           02B2      get_wrd       000F      
+holdtime      000C      holdweight    0005      homer         00FF      init_lcd      016F      ince          02A8      
+incbuf        02B4      inscale       02D0      inscalee      02DB      lcd           0000      lcd_str       0001      
+lcd_set       0038      leftctrl      0007      lcdtest       00DD      lcdstay       00ED      loop2         00F2      
+loop1         00F4      left          01DB      lcdmsg        0477      last          8000      main          0109      
+main1         010F      main2         0112      miniwait      015C      miniwait1     0160      nul           0000      
+nmiloc        0066      nextrom       0084      nextram       00A0      namedisp      0168      name          01A3      
+nextchr       020A      nextchre      0219      outlcd        021B      prtstg        01AA      p_int         0418      
+p_inta        0425      p_int1        042D      progend       8018      rightctrl     0006      romstart      0000      
+romtop        1000      ramstart      8000      ramtop        8800      rom           0000      rst08loc      0008      
+rst10loc      0010      rst18loc      0018      rst20loc      0020      rst28loc      0028      rst30loc      0030      
+rst38loc      0038      rst08prg      0069      rst10prg      006A      rst18prg      006B      rst20prg      006C      
+rst28prg      006D      rst30prg      006E      rst38prg      006F      rstnmiprg     0070      romerr        0071      
+romcheck      007B      ramcheck      009A      ramerror      00BD      right         01CD      reset         0264      
+read          0272      readoff       02F2      readoff2      032E      readoffe      0345      readout       03BF      
+ramerrmsg     0482      ramokmsg      0492      rombadmsg     04A2      scale         0008      space         0020      
+set_ent       0006      scaletest     0231      scaletest2    024A      value         8001      waitime       0029      
+wrt_dat       0001      waitnext      0120      waitnexta     0127      waitnext2     0131      waitnext3     0143      
+waitnexte     0157      wait          02DC      wait2         02E3      weightout     0356      weight1       045C      
+word3         0468      waitlast      8016      weightloc     8017      xpos          8015      
+
+tasm: Number of errors = 0

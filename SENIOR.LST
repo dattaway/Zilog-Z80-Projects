@@ -1,0 +1,400 @@
+0001   0000             ;ษอออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออป
+0002   0000             ;บ                                                                             บ
+0003   0000             ;บ seniorx.asm      Duane Attaway                                              บ
+0004   0000             ;วฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤถ
+0005   0000             ;บ Digital Sampling Oscilloscope                                               บ
+0006   0000             ;ศอออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออผ
+0007   0000             ;
+0008   0000             ;Note: Revised version of tasm regardes "\xx" as a two digit hex value, not
+0009   0000             ;      octal!
+0010   0000             ;
+0011   0000             
+0012   0000             #define     EDMASSIST
+0013   0000             
+0014   0000             #ifdef      EDMASSIST
+0015   0000             ramstart    .equ        $a000       ;test start of memory checking
+0016   0000             vidram      .equ        $4000       ;debugging display area
+0017   0000             ppi         .equ        $8c         ;enable keyboard
+0018   0000~            #else
+0019   0000~            romstart    .equ        $0000
+0020   0000~            ramstart    .equ        $8000       ;POST start of memory checking
+0021   0000~            vidram      .equ        $8000       ;final display area
+0022   0000~            ppi         .equ        $08
+0023   0000             #endif
+0024   0000             
+0025   0000             vidlen      .equ        $1f00
+0026   0000             ramtop      .equ        $c000       ;stack reference pointer
+0027   0000             
+0028   0000             ;<*** Hardware Interface ***>
+0029   0000             
+0030   0000             rampage     .equ        $00         ;extended memory register port
+0031   0000             adc         .equ        $01         ;analog voltage por
+0032   0000             ctca        .equ        $04         ;counter peripheral
+0033   0000             sioa        .equ        $0c         ;communications peripheral
+0034   0000             dma         .equ        $10         ;memory transfer peripheral
+0035   0000             
+0036   0000             ppia        .equ        ppi
+0037   0000             ppib        .equ        ppi+1
+0038   0000             ppic        .equ        ppi+2
+0039   0000             ppicntrl    .equ        ppi+3
+0040   0000             
+0041   0000             ctca0       .equ        ctca
+0042   0000             ctca1       .equ        ctca+1
+0043   0000             ctca2       .equ        ctca+2
+0044   0000             ctca3       .equ        ctca+3
+0045   0000             
+0046   0000             sioaad      .equ        sioa
+0047   0000             sioabd      .equ        sioa +1
+0048   0000             sioaac      .equ        sioa +2
+0049   0000             sioabc      .equ        sioa +3
+0050   0000             
+0051   0000             
+0052   0000             ;<*** Keyboard Control ***>
+0053   0000             
+0054   0000             repeat      .equ        1000
+0055   0000             
+0056   0000             
+0057   0000             ;<*** Hardware Screen Attributes ***>
+0058   0000             
+0059   0000             grlen       .equ        $17ff       ;length of graphics page
+0060   0000             grend       .equ        vidram+grlen;end of graphics page
+0061   0000             xlen        .equ        $20         ;maximum x length
+0062   0000             ylen        .equ        $18         ;maximum y length
+0063   0000             
+0064   0000             ;00-0123456789abcdef0123456789abcdef
+0065   0000             ;00-................................
+0066   0000             ;01-................................
+0067   0000             ;02-................................
+0068   0000             ;03-................................
+0069   0000             ;04-................................
+0070   0000             ;05-................................
+0071   0000             ;06-................................
+0072   0000             ;07-................................
+0073   0000             ;08-................................
+0074   0000             ;09-................................
+0075   0000             ;00-................................
+0076   0000             ;0a-................................
+0077   0000             ;0b-................................
+0078   0000             ;0c-................................
+0079   0000             ;0d-................................
+0080   0000             ;0e-................................
+0081   0000             ;0f-................................
+0082   0000             ;00-................................
+0083   0000             ;01-................................
+0084   0000             ;02-................................
+0085   0000             ;03-................................
+0086   0000             ;04-................................
+0087   0000             ;05-................................
+0088   0000             ;06-................................
+0089   0000             ;07-................................
+0090   0000             
+0091   0000             ;00-0123456789abcdef0123456789abcdef
+0092   0000             ;00-ษออออออออออัอออออออออัอออออออออป
+0093   0000             ;01-บFrequency ณ Trigger ณ Voltage บ
+0094   0000             ;02-บ<-------> ณ <-----> ณ <-----> บ
+0095   0000             ;03-วฤฤฤฤฤฤฤฤฤฤมฤฤฤยฤฤฤฤฤมฤฤฤฤฤฤฤฤฤถ
+0096   0000             ;04-บ Options <--> ณ   <--> Help   บ
+0097   0000             ;05-ฬออออออออออออออฯอออออออออออออออน
+0098   0000             ;06-บ              ณ               บ
+0099   0000             ;07-บ              ณ               บ
+0100   0000             ;08-บ              ณ               บ
+0101   0000             ;09-บ              ณ               บ
+0102   0000             ;00-บ              ณ               บ
+0103   0000             ;0a-บ              ณ               บ
+0104   0000             ;0b-บ              ณ               บ
+0105   0000             ;0c-บ              ณ               บ
+0106   0000             ;0d-บฤฤฤฤฤฤฤฤฤฤฤฤฤฤ ฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤบ
+0107   0000             ;0e-บ              ณ               บ
+0108   0000             ;0f-บ              ณ               บ
+0109   0000             ;00-บ              ณ               บ
+0110   0000             ;01-บ              ณ               บ
+0111   0000             ;02-บ              ณ               บ
+0112   0000             ;03-บ              ณ               บ
+0113   0000             ;04-บ              ณ               บ
+0114   0000             ;05-บ              ณ               บ
+0115   0000             ;06-บ              ณ               บ
+0116   0000             ;07-ศออออออออออออออออออออออออออออออผ
+0117   0000             
+0118   0000             ;00-0123456789abcdef0123456789abcdef
+0119   0000             ;00-ษออออออออออออออออออออออออออออออป
+0120   0000             ;01-บ     Space Saving Digital     บ
+0121   0000             ;02-บ         Oscilloscope         บ
+0122   0000             ;03-บ                              บ
+0123   0000             ;04-บ   Duane Attaway, DeVRY EET   บ
+0124   0000             ;05-ฬออออออออออออออออออออออออออออออน
+0125   0000             ;06-บ                              บ
+0126   0000             ;07-บ                              บ
+0127   0000             ;08-บ                              บ
+0128   0000             ;09-บ                              บ
+0129   0000             ;00-บ                              บ
+0130   0000             ;0a-บ                              บ
+0131   0000             ;0b-บ                              บ
+0132   0000             ;0c-บ                              บ
+0133   0000             ;0d-บ                              บ
+0134   0000             ;0e-บ                              บ
+0135   0000             ;0f-บ                              บ
+0136   0000             ;00-บ                              บ
+0137   0000             ;01-บ                              บ
+0138   0000             ;02-บ                              บ
+0139   0000             ;03-บ                              บ
+0140   0000             ;04-บ                              บ
+0141   0000             ;05-บ                              บ
+0142   0000             ;06-บ                              บ
+0143   0000             ;07-ศออออออออออออออออออออออออออออออผ
+0144   0000             
+0145   0000             
+0146   0000             ;<*** Graphics Driver Varibles ***>
+0147   0000             
+0148   0000             fontlen     .equ        $08
+0149   0000             fontlength  .equ        $100*fontlen
+0150   0000             
+0151   0000             
+0152   0000             ;8255 CONTROLLER
+0153   0000             ;   76543210    *** CONTROL WORD ***  --FOR PPICNTRL PORT
+0154   0000             ;   ณณณณณณณณ
+0155   0000             ;   ณณณณณณณภฤฤฤฤPORT C-- 1/INPUT; 0/OUTPUT  (LOWER BITS-PC3-PC0) ฟ
+0156   0000             ;   ณณณณณณภฤฤฤฤฤPORT B-- 1/INPUT; 0/OUTPUT                       ณMODE GROUP A
+0157   0000             ;   ณณณณณภฤฤฤฤฤฤMODE SELECTION--  0/MODE 0; 1/MODE 1             ู
+0158   0000             ;   ณณณณภฤฤฤฤฤฤฤPORT C-- 1/INPUT; 0/OUTPUT  (UPPER BITS-PC7-PC4) ฟ
+0159   0000             ;   ณณณภฤฤฤฤฤฤฤฤPORT A-- 1/INPUT; 0/OUTPUT                       ณMODE GROUP B
+0160   0000             ;   ณณภฤฤฤฤฤฤฤฤฤฺMODE SELECTION-- 00 MODE 0, 01 MODE1,           ณ
+0161   0000             ;   ณภฤฤฤฤฤฤฤฤฤฤภ                 1x MODE 2                      ู
+0162   0000             ;   ภฤฤฤฤฤฤฤฤฤฤฤ 1= I/O MODE;  2= BSR MODE (BIT-SET-RESET)
+0163   0000             ;
+0164   0000             ;   76543210
+0165   0000             ;   ณณณณณณณณ
+0166   0000             ;   ณณณณณณณภฤฤฤฤS/R:  1= SET, 0= RESET
+0167   0000             ;   ณณณณภมมฤฤฤฤฤBIT:  000 BIT0, 001 BIT1, 010 BIT2, 011 BIT3, ECT...
+0168   0000             ;   ณภมมฤฤฤฤฤฤฤฤxxx:  NOT USED, SET TO ZERO
+0169   0000             ;   ภฤฤฤฤฤฤฤฤฤฤฤBSR:  0
+0170   0000             ;
+0171   0000             ppiomode    .equ        10011000b   ;initializing register for the EDM.
+0172   0000             ;bppictrl   .equ        10000000b
+0173   0000             cppictrl    .equ        00001000b
+0174   0000             keyrows     .equ        00001000b
+0175   0000             cppimask    .equ        01000000b
+0176   0000             ppigraphic  .equ        11010111b
+0177   0000             ppitext     .equ        11111111b
+0178   0000             
+0179   0000             
+0180   0000             ;<*** ASCII Keyboard Function Codes ***>
+0181   0000             ctrla       .equ        1
+0182   0000             ctrlb       .equ        2
+0183   0000             ctrlc       .equ        3
+0184   0000             ctrld       .equ        4
+0185   0000             ctrle       .equ        5
+0186   0000             ctrlf       .equ        6
+0187   0000             ctrlg       .equ        7
+0188   0000             ctrlh       .equ        8
+0189   0000             ctrli       .equ        9
+0190   0000             ctrlj       .equ        10
+0191   0000             ctrlk       .equ        11
+0192   0000             ctrll       .equ        12
+0193   0000             ctrlm       .equ        13
+0194   0000             ctrln       .equ        14
+0195   0000             ctrlo       .equ        15
+0196   0000             ctrlp       .equ        16
+0197   0000             ctrlq       .equ        17
+0198   0000             ctrlr       .equ        18
+0199   0000             ctrls       .equ        19
+0200   0000             ctrlt       .equ        20
+0201   0000             ctrlu       .equ        21
+0202   0000             ctrlv       .equ        22
+0203   0000             ctrlw       .equ        23
+0204   0000             ctrlx       .equ        24
+0205   0000             ctrly       .equ        25
+0206   0000             ctrlz       .equ        26
+0207   0000             backspace   .equ        $08
+0208   0000             down        .equ        $1a
+0209   0000             esc         .equ        $1b
+0210   0000             left        .equ        $18
+0211   0000             return      .equ        $0d
+0212   0000             right       .equ        $19
+0213   0000             space       .equ        $20
+0214   0000             tab         .equ        $c
+0215   0000             up          .equ        $1c
+0216   0000             escape      .equ        $1b
+0217   0000             
+0218   0000             ;<*** old ROM Interface ***>
+0219   0000             #define     CHROUT      rst         10h
+0220   0000             #define     CHRIN       rst         18h
+0221   0000             #ifdef      EDMASSIST
+0222   0000             chroutvect  .equ        $6004
+0223   0000             command     .equ        $bc6
+0224   0000             dflti       .equ        $6018
+0225   0000             dflto       .equ        $6019
+0226   0000             getchar     .equ        $434
+0227   0000             getchrvct   .equ        $6007
+0228   0000             par_prn     .equ        $a83
+0229   0000             prtc        .equ        $54d
+0230   0000             
+0231   6254             ncint       .org        $6254
+0232   6254             njint       .org        $6254
+0233   6257             nkint       .org        $6257
+0234   625A             nlint       .org        $625a
+0235   625D             nnint       .org        $625d
+0236   6260             npint       .org        $6260
+0237   6263             nqint       .org        $6263
+0238   6266             nvint       .org        $6266
+0239   6269             nxint       .org        $6269
+0240   626C             nyint       .org        $626c
+0241   626F             nzint       .org        $626f
+0242   6272             n0int       .org        $6272
+0243   6275             n1int       .org        $6275
+0244   6278             n2int       .org        $6278
+0245   627B             n3int       .org        $627b
+0246   627E             n4int       .org        $627e
+0247   6281             n5int       .org        $6281
+0248   6284             n6int       .org        $6284
+0249   6287             n7int       .org        $6287
+0250   628A             n8int       .org        $628a
+0251   628D             n9int       .org        $628d
+0252   628D             #endif
+0253   628D             
+0254   628D             
+0255   628D             ;<*** Include Variables ***>
+0256   628D             bit8mask    .equ        111b        ;used for bytewise calculations
+0257   628D             neg         .equ        -1
+0258   628D             nul         .equ        0
+0259   628D             waitdelay   .equ        10000       ;prevent keybouncing
+0260   628D             
+0261   628D             
+0262   628D             #ifdef      EDMASSIST
+0263   628D             ;*******************************************************************************
+0264   628D             ; Vector Jump routines:
+0265   628D             ; Registers Used:
+0266   628D             ; Stack Used:
+0267   628D             ; These vectors may be used on the modified EDM rom as a quick way to execute
+0268   628D             ; selected subroutines.
+0269   628D             ;
+0270   628D             ;*******************************************************************************
+0271   626F                         .org        nzint
+0272   626F                         jp          startup
+tasm: unrecognized instruction.           Line 0272 in senior.asm
+0273   6254                         .org        ncint
+0274   6254                         jp          cls
+tasm: unrecognized instruction.           Line 0274 in senior.asm
+0275   6260                         .org        npint
+0276   6260                         jp          ramcheck
+tasm: unrecognized instruction.           Line 0276 in senior.asm
+0277   6263                         .org        nqint
+0278   6263                         jp          exitfont
+tasm: unrecognized instruction.           Line 0278 in senior.asm
+0279   626C                         .org        nyint
+0280   626C                         jp          terminal
+tasm: unrecognized instruction.           Line 0280 in senior.asm
+0281   6254                         .org        njint
+0282   6254                         jp          cominit
+tasm: unrecognized instruction.           Line 0282 in senior.asm
+0283   6272                         .org        n0int
+0284   6272                         jp          wrtest
+tasm: unrecognized instruction.           Line 0284 in senior.asm
+0285   6275                         .org        n1int
+0286   6275                         jp          rdtest
+tasm: unrecognized instruction.           Line 0286 in senior.asm
+0287   6278                         .org        n2int
+0288   6278                         jp          adctest
+tasm: unrecognized instruction.           Line 0288 in senior.asm
+0289   627B                         .org        n3int
+0290   627B                         jp          mousetst
+tasm: unrecognized instruction.           Line 0290 in senior.asm
+0291   627E                         .org        n4int
+0292   627E                         jp          mouseinit
+tasm: unrecognized instruction.           Line 0292 in senior.asm
+0293   6281                         .org        n5int
+0294   6281                         jp          mousedrvr
+tasm: unrecognized instruction.           Line 0294 in senior.asm
+0295   6284                         .org        n6int
+0296   6284                         jp          main
+tasm: unrecognized instruction.           Line 0296 in senior.asm
+0297   6284             
+0298   6284             
+0299   6284~            #else                               ;ROM programming:
+0300   6284~            ;******************************************************************************
+0301   6284~            ; bootstrap routine:
+0302   6284~            ; Z80 starts here on initial power up or after active reset.
+0303   6284~            ;
+0304   6284~            ;******************************************************************************
+0305   6284~            ;
+0306   6284~            bootstrap   .org        $romstart
+0307   6284~                        di                      ;burn some serious nanoseconds...
+0308   6284~                        ld          a,a         ;1
+0309   6284~                        ld          b,b         ;2
+0310   6284~                        ld          c,c         ;3
+0311   6284~                        ld          d,d         ;4
+0312   6284~                        jp          main        ;5,6,7
+0313   6284~            
+0314   6284~            
+0315   6284~            ;******************************************************************************
+0316   6284~            ; RESTART Vecors:
+0317   6284~            ;
+0318   6284~            ;
+0319   6284~            ;******************************************************************************
+0320   6284~            ;
+0321   6284~                        jp          rst08
+0322   6284~                        .text       "Digital     "
+0323   6284~                        .org        $10
+0324   6284~                        jp          chrout
+0325   6284~                        .text       "Sampling    "
+0326   6284~                        .org        $18
+0327   6284~                        jp          rst18
+0328   6284~                        .text       "Oscilloscope"
+0329   6284~                        .org        $20
+0330   6284~                        jp          rst20
+0331   6284~                        .text       "by          "
+0332   6284~                        .org        $28
+0333   6284~                        jp          rst28
+0334   6284~                        .text       "Duane       "
+0335   6284~                        .org        $30
+0336   6284~                        jp          rst30
+0337   6284~                        .text       "Attaway     "
+0338   6284~                        .org        $38
+0339   6284~                        jp          rst38
+0340   6284~                        .text       "Z80 Code                                              "
+0341   6284~                        .text       "                                                      "
+0342   6284~                        .org        $66
+0343   6284~                        jp          nmi
+0344   6284~            
+0345   6284~            
+0346   6284~            ;******************************************************************************
+0347   6284~            ; RESTART Subroutines:
+0348   6284~            ;
+0349   6284~            ;
+0350   6284~            ;******************************************************************************
+0351   6284~            ;
+0352   6284~            rst08
+0353   6284~            rst18
+0354   6284~            rst20
+0355   6284~            rst28
+0356   6284~            rst30
+0357   6284~            rst38
+0358   6284~            nmi
+0359   6284~            
+0360   6284             #endif
+0361   6284             
+0362   6284             ;******************************************************************************
+0363   6284             ; main routine:
+0364   6284             ; The POST (Power On Self Test) is performed here.  During this test, critical
+0365   6284             ; system variables and hardware are set for proper operation.
+0366   6284             ;
+0367   6284             ; These areas are checked:
+0368   6284             ;
+0369   6284             ;           RAM - system area checked
+0370   6284             ;                 Stack is set
+0371   6284             ;           ROM - Checksum verified
+0372   6284             ;           RAM - Video area is checked
+0373   6284             ;           Video Generator is checked for existance
+0374   6284             ;           RAM - Extended area checked
+0375   6284             ;           DMA - checked for existance
+0376   6284             ;           CTC - all channels are checked
+0377   6284             ;           ADC - value simply displayed to screen
+0378   6284             ;           SIO - mouse pointing device checked for existance
+0379   6284             ;
+0380   6284             ; Then the user is asked to continue . . .
+0381   6284             ;
+0382   6284             ;
+0383   6284             ;******************************************************************************
+0384   6284             ;
+0385   6284             sysram      .equ        $a000
+0386   6284             sysramend   .equ        extended
+0387   6284             
